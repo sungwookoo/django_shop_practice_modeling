@@ -1,67 +1,92 @@
-from enum import Enum
-
 from django.db import models
+from django.urls import reverse
 
-# Create your models here.
-from user.models import User
+from user import models as user_models
 
 
 class Category(models.Model):
+    # category_1.name
+    name = models.CharField(max_length=100) # laptop, mobile
+
     class Meta:
-        db_table = "category"
+        db_table = "categories"
+
+    # category_1.get_absolute_url
+    def get_absolute_url(self):
+        print("get_url = ", end=""), print(reverse('product:list', args=[self.name]))
+        return reverse('product:list', args=[self.name]) # product/list/laptop
+
+
+# class Product(models.Model):
+#     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)  # laptop, mobile
+#     name = models.CharField(max_length=100)  # macbook, thinkpad
+#     image = models.ImageField(upload_to='product/%Y/%m/%d', blank=True )
+#     description = models.TextField(blank=True)
+#
+#     price = models.DecimalField(max_digits=10, decimal_places=2)
+#     stock = models.IntegerField()
+#
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+#
+#     class Meta:
+#         db_table = "products"
+#
+#     def __str__(self):
+#         return self.name
+
+class OrderStatus(models.Model):
+    status_name = models.CharField(max_length=100)  # 주문 완료, 결제 완료, 취소, 배송출발, 배송완료
+
+    class Meta:
+        db_table = "order_status"
+
+
+class ProductOrder(models.Model):
+    # product row one
+    product = models.ForeignKey('Product', on_delete=models.SET_NULL, blank=True, null=True)
+    product_count = models.IntegerField()
+    user_order = models.ForeignKey('UserOrder', on_delete=models.SET_NULL, blank=True,null=True)
+
+    class Meta:
+        db_table = 'product_orders'
+
+
+class Product(models.Model):
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)  # laptop, mobile
+    name = models.CharField(max_length=100)  # macbook, thinkpad
+    image = models.ImageField(upload_to='product/%Y/%m/%d', blank=True )
+    description = models.TextField(blank=True)
+
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock = models.IntegerField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "products"
 
     def __str__(self):
         return self.name
 
-    name = models.CharField(max_length=256)
+    def get_absolute_url(self):
+
+        return reverse('product:product_detail', args=[self.id, self.name])
 
 
-# <상품 이름, 상품 카테고리, 이미지, 설명, 가격, 재고량>
-class Product(models.Model):
-    class Meta:
-        db_table = "product"
-
-    name = models.CharField(max_length=256)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True)
-    image = models.FileField(upload_to='media/product/')
-    desc = models.TextField()
-    price = models.IntegerField(default=0)
-    stock = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-
-# 유저가 주문한 상품의 개수를 저장
-class ProductOrder(models.Model):
-    class Meta:
-        db_table = "product_order"
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    amount = models.IntegerField(default=0)
-
-
-# 유저의 주문(배송주소, 주문시간, 전체 상품 가격, 할인율, 최종가격, 유효여부(boolean))을 저장
 class UserOrder(models.Model):
+    user = models.ForeignKey(user_models.User, on_delete=models.SET_NULL, null=True)
+    product_order = models.ForeignKey('ProductOrder', on_delete=models.SET_NULL, null=True)
+    order_status = models.ForeignKey('OrderStatus', on_delete=models.SET_NULL, null=True)
+
+    delivery_address = models.CharField(max_length=1000)
+    order_time = models.DateTimeField()
+    total_price = models.DecimalField(max_digits=20, decimal_places=2)
+    discount = models.DecimalField(max_digits=20, decimal_places=2)
+    final_price = models.DecimalField(max_digits=20, decimal_places=2)
+
+    active = models.BooleanField()
+
     class Meta:
-        db_table = "user_order"
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    receiving_address = models.CharField(max_length=256)
-    total_price = models.IntegerField(default=0)
-    discount = models.FloatField(default=0)
-    amount = models.ForeignKey(ProductOrder, on_delete=models.CASCADE)
-    final_price = models.IntegerField(default=0)
-
-    is_valid = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-
-# 주문한 상태(주문 완료, 결제 완료, 취소, 배송출발, 배송완료) 을 저장
-class OrderStatus(models.Model):
-    class Meta:
-        db_table = "order_status"
-
-    status = models.CharField(max_length=256)
-    order = models.ForeignKey(UserOrder, on_delete=models.CASCADE)
+        db_table = 'user_order'
